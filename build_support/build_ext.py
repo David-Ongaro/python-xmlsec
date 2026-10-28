@@ -8,6 +8,19 @@ from setuptools.command.build_ext import build_ext as build_ext_orig
 from .static_build import CrossCompileInfo, StaticBuildHelper
 
 
+def _has_xmlsec_engine(include_dirs):
+    """Return True if xmlSecKeyDataFormatEngine is declared in the xmlsec1 headers.
+
+    The enum value was added in libxmlsec1 1.2.33 and is absent from builds
+    compiled without OpenSSL ENGINE support (e.g. RHEL 9 in FIPS mode).
+    """
+    for d in include_dirs:
+        header = os.path.join(d, 'xmlsec', 'keysdata.h')
+        if os.path.exists(header):
+            return 'xmlSecKeyDataFormatEngine' in open(header).read()
+    return False
+
+
 def _env_flag(name: str, default: bool) -> bool:
     value = os.environ.get(name)
     if value is None:
@@ -49,6 +62,12 @@ class build_ext(build_ext_orig):
             ext.include_dirs.extend(config['include_dirs'])
             ext.library_dirs.extend(config['library_dirs'])
             ext.libraries.extend(config['libraries'])
+
+            if _has_xmlsec_engine(ext.include_dirs):
+                ext.define_macros.append(('PYXMLSEC_HAVE_XMLSEC_ENGINE', '1'))
+                self.info('xmlSecKeyDataFormatEngine detected: ENGINE key loading enabled')
+            else:
+                self.info('xmlSecKeyDataFormatEngine not found: Key.from_engine() will raise xmlsec.Error at runtime')
 
         import lxml
 

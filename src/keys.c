@@ -211,12 +211,16 @@ static PyObject* PyXmlSec_KeyFromEngine(PyObject* self, PyObject* args, PyObject
     if ((key = PyXmlSec_NewKey1((PyTypeObject*)self)) == NULL) goto ON_FAIL;
 
     Py_BEGIN_ALLOW_THREADS;
+#ifdef PYXMLSEC_HAVE_XMLSEC_ENGINE
     #if XMLSEC_VERSION_HEX >= 0x10303
         // from version 1.3.3 (inclusive)
         key->handle = xmlSecCryptoAppKeyLoadEx(engine_and_key_id, xmlSecKeyDataTypePrivate, xmlSecKeyDataFormatEngine, NULL, xmlSecCryptoAppGetDefaultPwdCallback(), (void*)engine_and_key_id);
     #else
         key->handle = xmlSecCryptoAppKeyLoad(engine_and_key_id, xmlSecKeyDataFormatEngine, NULL, xmlSecCryptoAppGetDefaultPwdCallback(), (void*)engine_and_key_id);
     #endif
+#else
+    key->handle = NULL;  /* ENGINE not available: xmlSecKeyDataFormatEngine absent from this libxmlsec1 build */
+#endif
     Py_END_ALLOW_THREADS;
 
     if (key->handle == NULL) {
